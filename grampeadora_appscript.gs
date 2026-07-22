@@ -73,6 +73,7 @@ function doGet(e){
     if(action === 'getDashboard')      out = getDashboard();
     else if(action === 'getProdutos')  out = { ok:true, produtos: lerProdutos_(getSS_()) };
     else if(action === 'addApontamento') out = addApontamento_(p);
+    else if(action === 'setConfig')    out = setConfig_(p);
     else if(action === 'ping')         out = { ok:true, pong:true, ts:agoraMin_() };
     else                               out = { ok:false, erro:'Ação desconhecida: '+action };
   }catch(err){
@@ -162,6 +163,43 @@ function totalPaineisHoje_(ss, tz){
   const arr = lerApontamentosHoje_(ss, tz);
   let s=0; arr.forEach(a=>{ s += Number(a.qtd)||1; });
   return s;
+}
+
+// ── Escrita: grava valores na aba `config` (via link, sem editar célula) ──
+// Ex.: …/exec?action=setConfig&turno_inicio=07:00&turno_fim=17:00&pausas=11:00-12:12
+// Só aceita chaves conhecidas. Horários são gravados como TEXTO (formato @),
+// pra "07:00" não virar um horário/Date no Sheets.
+function setConfig_(p){
+  const PERMITIDO = ['meta_batidas_hora','fator_eficiencia','turno_inicio','turno_fim',
+                     'pausas','verde_min','amarelo_min','produto_referencia','meta_batidas_teorica'];
+  const lock = LockService.getScriptLock();
+  try{ lock.waitLock(15000); }catch(e){ return { ok:false, erro:'ocupado, tente de novo' }; }
+  try{
+    const ss = getSS_();
+    let sh = ss.getSheetByName(SHEET_CONFIG);
+    if(!sh){
+      sh = ss.insertSheet(SHEET_CONFIG);
+      sh.getRange(1,1,CONFIG_PADRAO.length,2).setValues(CONFIG_PADRAO);
+    }
+    // Mapa chave -> nº da linha (1-based).
+    const vals = sh.getDataRange().getValues();
+    const linhaDe = {};
+    for(let i=1;i<vals.length;i++){ const k=String(vals[i][0]||'').trim(); if(k) linhaDe[k]=i+1; }
+
+    let mudou = 0;
+    PERMITIDO.forEach(k=>{
+      if(p[k]==null || p[k]==='') return;
+      let linha = linhaDe[k];
+      if(!linha){ linha = sh.getLastRow()+1; sh.getRange(linha,1).setValue(k); }
+      const cel = sh.getRange(linha,2);
+      cel.setNumberFormat('@');          // texto (evita "07:00" virar horário)
+      cel.setValue(String(p[k]));
+      mudou++;
+    });
+    return { ok:true, mudou:mudou, config: lerConfig_(ss) };
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 // ── Leitura da aba config (chave/valor) ───────────────────
