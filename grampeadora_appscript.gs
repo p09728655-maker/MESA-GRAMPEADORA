@@ -165,18 +165,26 @@ function totalPaineisHoje_(ss, tz){
 }
 
 // ── Leitura da aba config (chave/valor) ───────────────────
+// Cuidado: "06:00" digitado numa célula vira um HORÁRIO (Date) no Sheets. Se
+// devolvêssemos o Date cru, o dashboard receberia "1899-12-30T..." e não
+// montaria as faixas. Então convertemos Date de volta para "HH:mm" usando o
+// fuso DA PLANILHA — que é o mesmo fuso que o Sheets usou para criar o Date,
+// então a volta é exata (imune ao deslocamento histórico de 1899).
 function lerConfig_(ss){
   let sh = ss.getSheetByName(SHEET_CONFIG);
   if(!sh){
     sh = ss.insertSheet(SHEET_CONFIG);
     sh.getRange(1,1,CONFIG_PADRAO.length,2).setValues(CONFIG_PADRAO);
   }
+  const tzPlanilha = ss.getSpreadsheetTimeZone() || 'America/Sao_Paulo';
   const vals = sh.getDataRange().getValues();
   const cfg = {};
   for(let i=1;i<vals.length;i++){
     const k = String(vals[i][0]||'').trim();
     if(!k) continue;
-    cfg[k] = vals[i][1];
+    let v = vals[i][1];
+    if(v instanceof Date && !isNaN(v)) v = Utilities.formatDate(v, tzPlanilha, 'HH:mm');
+    cfg[k] = v;
   }
   return cfg;
 }
