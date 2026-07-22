@@ -1,13 +1,13 @@
 {
-  "name": "Grampeadora · Painel",
-  "short_name": "Grampeadora",
-  "description": "Ritmo de produção — Mesa Grampeadora de Painel · Patrimar Jaci/SP",
-  "start_url": "/",
-  "scope": "/",
+  "name": "Apontar · Grampeadora",
+  "short_name": "Apontar",
+  "description": "Apontamento de painéis — Mesa Grampeadora · Patrimar Jaci/SP",
+  "start_url": "/apontar",
+  "scope": "/apontar",
   "display": "standalone",
   "background_color": "#111111",
   "theme_color": "#111111",
-  "orientation": "landscape",
+  "orientation": "portrait",
   "icons": [
     { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
     { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }

@@ -5,6 +5,11 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Hora a Hora · Grampeadora</title>
 <meta name="theme-color" content="#111111">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Grampeadora">
+<link rel="manifest" href="/manifest.json">
 <link rel="icon" type="image/png" sizes="32x32" href="/icon-192.png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -121,15 +126,15 @@ tr.corrente td:first-child{color:var(--acc)}
     <div class="big" id="ader-val">—</div>
     <div class="sub" id="ader-sub">aguardando dados</div>
   </div>
-  <div class="card" id="c-batidas">
-    <div class="lbl">Batidas · realizado / meta</div>
+  <div class="card" id="c-paineis">
+    <div class="lbl">Painéis · realizado / meta</div>
     <div class="big sm" id="bat-val">—</div>
     <div class="sub" id="bat-sub">meta acumulada até agora</div>
   </div>
-  <div class="card" id="c-paineis">
-    <div class="lbl">Painéis no turno</div>
-    <div class="big sm" id="pan-val">—</div>
-    <div class="sub" id="pan-sub">equivalente da meta: —</div>
+  <div class="card" id="c-metah">
+    <div class="lbl">Meta / hora (painéis)</div>
+    <div class="big sm" id="mh-val">—</div>
+    <div class="sub" id="mh-sub">produto de referência</div>
   </div>
 </section>
 
@@ -138,7 +143,7 @@ tr.corrente td:first-child{color:var(--acc)}
     <thead>
       <tr>
         <th style="width:15%">Faixa</th>
-        <th style="width:15%">Meta (bat.)</th>
+        <th style="width:15%">Meta (pnl)</th>
         <th style="width:15%">Realizado</th>
         <th style="width:16%">Acum. meta</th>
         <th style="width:16%">Acum. real.</th>
@@ -279,42 +284,49 @@ function calcular(payload){
   // Batidas por produto (cruza com a aba produtos).
   const batidasDe = prod => (produtos[prod] && Number(produtos[prod].batidas)) || 0;
 
-  // Realizado por faixa + totais do turno.
-  let paineisTurno=0, batidasTurno=0;
-  const realPorFaixa = faixas.map(()=>0);
+  // Produto de referência para faixas sem apontamento (p/ converter meta→painéis):
+  // cfg.produto_referencia, senão o 1º produto da aba `produtos`.
+  const nomesProd = Object.keys(produtos);
+  const prodRef = (cfg.produto_referencia && produtos[cfg.produto_referencia]) ? cfg.produto_referencia : (nomesProd[0]||null);
+  const batRefPadrao = batidasDe(prodRef) || 9;
+
+  // Agrupa apontamentos por faixa.
+  const apFaixa = faixas.map(()=>[]);
   apont.forEach(a=>{
-    const bat = batidasDe(a.produto) * (Number(a.qtd)||1);
-    batidasTurno += bat;
-    paineisTurno += (Number(a.qtd)||1);
     for(let i=0;i<faixas.length;i++){
-      if(a.m>=faixas[i].ini && a.m<faixas[i].fim){ realPorFaixa[i]+=bat; break; }
+      if(a.m>=faixas[i].ini && a.m<faixas[i].fim){ apFaixa[i].push(a); break; }
     }
   });
 
-  // Produto "rodando agora": o do apontamento mais recente; senão o de maior
-  // volume no dia. Usado só para converter meta/h em painéis (informativo).
-  let produtoCorrente=null;
-  if(apont.length){
-    let maxM=-1;
-    apont.forEach(a=>{ if(a.m>maxM){maxM=a.m; produtoCorrente=a.produto;} });
-  }
+  // Produto "rodando agora": o do apontamento mais recente.
+  let produtoCorrente=null, _maxM=-1;
+  apont.forEach(a=>{ if(a.m>_maxM){ _maxM=a.m; produtoCorrente=a.produto; } });
 
-  // Monta linhas com acumulados e semáforo por linha.
-  let accMeta=0, accReal=0;
+  // Monta linhas — TUDO EM PAINÉIS. A meta em painéis da faixa =
+  // (batidas/h × min produtivos/60) ÷ batidas do produto daquela faixa. Assim
+  // GRANDE(9)→~139/h e MENOR(7)→~179/h; a meta segue imune ao mix, mas a tela
+  // mostra PAINEL, não batida.
+  let paineisTurno=0, accMeta=0, accReal=0;
   const linhas = faixas.map((f,i)=>{
-    const lenMin = f.fim-f.ini;
-    const prodMin = lenMin - pausaOverlap(f.ini,f.fim,pausas);
-    const metaFaixa = metaHora * prodMin/60;
-    const real = realPorFaixa[i];
+    const prodMin = (f.fim-f.ini) - pausaOverlap(f.ini,f.fim,pausas);
+    // produto dominante da faixa (por qtd); senão o de referência.
+    let batRef=batRefPadrao;
+    if(apFaixa[i].length){
+      const cont={}; apFaixa[i].forEach(a=>{ cont[a.produto]=(cont[a.produto]||0)+(Number(a.qtd)||1); });
+      const prodFaixa = Object.keys(cont).sort((x,y)=>cont[y]-cont[x])[0];
+      batRef = batidasDe(prodFaixa) || batRefPadrao;
+    }
+    const metaFaixa = batRef>0 ? (metaHora*prodMin/60)/batRef : 0;         // painéis
+    const real = apFaixa[i].reduce((s,a)=>s+(Number(a.qtd)||1),0);          // painéis realizados
+    paineisTurno += real;
 
     let estado, metaAcc, metaCmp;
     if(now >= f.fim){ estado='encerrada'; metaAcc=metaFaixa; metaCmp=metaFaixa; }
     else if(now <= f.ini){ estado='futura'; metaAcc=0; metaCmp=0; }
     else {
       estado='corrente';
-      const decorrido = now - f.ini;
-      const prodDecorrido = decorrido - pausaOverlap(f.ini, now, pausas);
-      metaAcc = metaHora * Math.max(0,prodDecorrido)/60;   // meta parcial (evita vermelho falso)
+      const prodDecorrido = (now - f.ini) - pausaOverlap(f.ini, now, pausas);
+      metaAcc = batRef>0 ? (metaHora*Math.max(0,prodDecorrido)/60)/batRef : 0;  // meta parcial (evita vermelho falso)
       metaCmp = metaAcc;
     }
     accMeta += metaAcc;
@@ -337,19 +349,18 @@ function calcular(payload){
   const aderencia = accMeta>0 ? accReal/accMeta : null;
   const aderCor = aderencia==null ? '' : (aderencia>=verdeMin?'ok':aderencia>=amareloMin?'warn':'red');
 
-  // Conversão para painéis (mix real do dia).
-  const batidasMediaMix = paineisTurno>0 ? batidasTurno/paineisTurno
-                         : (batidasDe(produtoCorrente)||9);
-  const paineisMeta = batidasMediaMix>0 ? accMeta/batidasMediaMix : 0;
-  const metaHoraPaineis = batidasDe(produtoCorrente)>0 ? metaHora/batidasDe(produtoCorrente) : null;
+  // Meta/hora em painéis do produto rodando agora (ou o de referência).
+  const prodMostrar = produtoCorrente || prodRef;
+  const batMostrar = batidasDe(prodMostrar);
+  const metaHoraPaineis = batMostrar>0 ? metaHora/batMostrar : null;
 
   return {
     metaHora, fator, verdeMin, amareloMin,
     temTurno: faixas.length>0,
     linhas, accMeta, accReal, aderencia, aderCor,
-    paineisTurno, paineisMeta, metaHoraPaineis,
-    produtoCorrente,
-    produtoDesc: produtoCorrente && produtos[produtoCorrente] ? produtos[produtoCorrente].descricao : '',
+    paineisTurno, metaHoraPaineis, batMostrar,
+    produtoCorrente: prodMostrar,
+    produtoDesc: prodMostrar && produtos[prodMostrar] ? produtos[prodMostrar].descricao : '',
     now
   };
 }
@@ -376,17 +387,17 @@ function render(){
     ? (R.aderCor==='ok'?'no ritmo ✓':R.aderCor==='warn'?'atenção — abaixo da meta':R.aderCor==='red'?'crítico — recuperar':'aguardando')
     : 'turno não configurado';
 
-  // Card batidas
+  // Card painéis (realizado / meta acumulada)
   document.getElementById('bat-val').textContent =
     fmtInt(R.accReal)+' / '+fmtInt(R.accMeta);
   const gap = R.accReal - R.accMeta;
-  document.getElementById('bat-sub').innerHTML = R.metaHoraPaineis!=null
-    ? ('meta/h ≈ <b>'+fmtInt(R.metaHoraPaineis)+'</b> painéis · '+(gap>=0?'+':'')+fmtInt(gap)+' vs meta')
-    : ((gap>=0?'+':'')+fmtInt(gap)+' batidas vs meta acumulada');
+  document.getElementById('bat-sub').innerHTML = (gap>=0?'+':'')+fmtInt(gap)+' painéis vs meta acumulada';
 
-  // Card painéis
-  document.getElementById('pan-val').textContent = fmtInt(R.paineisTurno);
-  document.getElementById('pan-sub').innerHTML = 'equivalente da meta: <b>'+fmtInt(R.paineisMeta)+'</b> painéis';
+  // Card meta/hora (painéis) do produto rodando
+  document.getElementById('mh-val').textContent = R.metaHoraPaineis!=null ? fmtInt(R.metaHoraPaineis) : '—';
+  document.getElementById('mh-sub').innerHTML = R.produtoCorrente
+    ? (R.produtoCorrente + (R.batMostrar?' · '+R.batMostrar+' batidas/painel':''))
+    : 'produto de referência';
 
   // Tabela
   const tb=document.getElementById('tbody');
