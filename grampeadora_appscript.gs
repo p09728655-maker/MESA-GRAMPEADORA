@@ -10,12 +10,14 @@
 //        que a regra fique num lugar só e visível (ver `index.html`).
 //
 // CONFIGURAR 1 VEZ:
-//   1. Cole este arquivo no editor de Apps Script LIGADO à planilha da
-//      grampeadora (Extensões ▸ Apps Script, a partir da própria planilha).
+//   1. Cole este arquivo no editor de Apps Script. Funciona de duas formas:
+//        • STANDALONE (script.google.com) — usa SHEET_ID abaixo (já preenchido).
+//        • LIGADO à planilha (Extensões ▸ Apps Script) — deixe SHEET_ID vazio.
 //   2. Configurações do projeto ▸ Fuso horário = (GMT-03:00) America/Sao_Paulo.
 //      O filtro "apontamentos de hoje" usa o fuso do PROJETO.
 //   3. Implantar ▸ Nova implantação ▸ App da Web:
 //        Executar como = Eu · Quem tem acesso = Qualquer pessoa.
+//      Autorize o acesso à planilha quando for pedido.
 //      Copie a URL /exec e cole em CFG.SHEETS_URL no dashboard (ou use ?url=).
 //   4. Sempre que MUDAR este arquivo, é preciso RE-IMPLANTAR (Gerenciar
 //      implantações ▸ editar ▸ Nova versão). Trocar dados na planilha NÃO
@@ -26,9 +28,20 @@
 //   config-base). Assim o setor começa a operar sem montar planilha na mão.
 // ════════════════════════════════════════════════════════
 
+// ID da planilha GRAMPEADORA. Assim o script funciona tanto LIGADO à planilha
+// (Extensões ▸ Apps Script) quanto STANDALONE (criado pelo script.google.com).
+// Se um dia trocar de planilha, é só mudar este ID e re-implantar.
+const SHEET_ID = '1vZpuiwnbaotM4b73VX5HjJtodiigFUhpfjQkKWUT5fQ';
+
 const SHEET_APONT    = 'apontamentos';
 const SHEET_PRODUTOS = 'produtos';
 const SHEET_CONFIG   = 'config';
+
+// Abre a planilha por ID; cai para a ativa se o ID estiver vazio (modo ligado).
+function getSS_(){
+  if(SHEET_ID) return SpreadsheetApp.openById(SHEET_ID);
+  return SpreadsheetApp.getActive();
+}
 
 // Config-base criada na 1ª vez. O setor ajusta na planilha, sem redeploy.
 const CONFIG_PADRAO = [
@@ -58,6 +71,8 @@ function doGet(e){
   let out;
   try{
     if(action === 'getDashboard')      out = getDashboard();
+    else if(action === 'getProdutos')  out = { ok:true, produtos: lerProdutos_(getSS_()) };
+    else if(action === 'addApontamento') out = addApontamento_(p);
     else if(action === 'ping')         out = { ok:true, pong:true, ts:agoraMin_() };
     else                               out = { ok:false, erro:'Ação desconhecida: '+action };
   }catch(err){
@@ -78,7 +93,7 @@ function reply_(obj, cb){
 
 // ── Ação principal ────────────────────────────────────────
 function getDashboard(){
-  const ss = SpreadsheetApp.getActive();
+  const ss = getSS_();
   const tz = Session.getScriptTimeZone() || 'America/Sao_Paulo';
 
   const config   = lerConfig_(ss);
@@ -94,6 +109,59 @@ function getDashboard(){
     produtos: produtos,
     apontamentos: apont                     // [{m, produto, qtd}] — só de hoje
   };
+}
+
+// ── Escrita: grava 1 apontamento (chamado pelo app de apontamento) ──
+// 1 linha por painel concluído. O timestamp é carimbado aqui (fonte única).
+// LockService evita corrida entre os dois lados da mesa apontando ao mesmo tempo.
+function addApontamento_(p){
+  const produto = String((p && p.produto) || '').trim();
+  if(!produto) return { ok:false, erro:'produto vazio' };
+  const qtd = Math.max(1, Math.round(Number(p.qtd)||1));
+  const op  = String((p && p.op) || '').trim();
+
+  const lock = LockService.getScriptLock();
+  try{ lock.waitLock(15000); }catch(e){ return { ok:false, erro:'ocupado, tente de novo' }; }
+  try{
+    const ss = getSS_();
+    const tz = Session.getScriptTimeZone() || 'America/Sao_Paulo';
+    let sh = ss.getSheetByName(SHEET_APONT);
+    if(!sh){
+      sh = ss.insertSheet(SHEET_APONT);
+      sh.getRange(1,1,1,4).setValues([['timestamp','op','produto','qtd_paineis']]);
+    }
+    const now = new Date();
+    // Monta a linha respeitando a ordem do cabeçalho (tolerante a reordenação).
+    const width = Math.max(4, sh.getLastColumn());
+    const head = sh.getRange(1,1,1,width).getValues()[0].map(h=>String(h||'').trim().toLowerCase());
+    if(head.indexOf('produto') < 0){
+      sh.appendRow([now, op, produto, qtd]);          // cabeçalho inesperado: usa ordem padrão
+    } else {
+      const row = new Array(width).fill('');
+      for(let c=0;c<width;c++){
+        const n = head[c]||'';
+        if(n.indexOf('timestamp')>=0 || n==='data' || n==='datahora') row[c]=now;
+        else if(n==='op') row[c]=op;
+        else if(n==='produto') row[c]=produto;
+        else if(n.indexOf('qtd')>=0 || n==='quantidade' || n==='paineis') row[c]=qtd;
+      }
+      sh.appendRow(row);
+    }
+    return {
+      ok:true, produto:produto, qtd:qtd,
+      totalHoje: totalPaineisHoje_(ss, tz),
+      hora: Utilities.formatDate(now, tz, 'HH:mm')
+    };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// Soma de qtd_paineis apontados hoje (feedback para o operador).
+function totalPaineisHoje_(ss, tz){
+  const arr = lerApontamentosHoje_(ss, tz);
+  let s=0; arr.forEach(a=>{ s += Number(a.qtd)||1; });
+  return s;
 }
 
 // ── Leitura da aba config (chave/valor) ───────────────────

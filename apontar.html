@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>Apontar · Grampeadora</title>
+<meta name="theme-color" content="#111111">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="icon" type="image/png" sizes="32x32" href="/icon-192.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#111111;--surface:#1C1C1C;--elevated:#242424;--border:#2E2E2E;
+  --acc:#FF5C1F;--ok:#4CAF50;--warn:#FF9800;--red:#F44336;
+  --txt:#F5F5F5;--txt2:#8A8A8A;--txt3:#4A4A4A;
+  --font-h:'Barlow Condensed',sans-serif;
+  --font-b:'Barlow',sans-serif;
+  --font-d:'IBM Plex Mono',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;background:var(--bg);color:var(--txt);font-family:var(--font-b);overscroll-behavior:none}
+body{display:flex;flex-direction:column;min-height:100dvh;padding:env(safe-area-inset-top) 14px calc(env(safe-area-inset-bottom) + 14px)}
+
+/* Cabeçalho */
+.hdr{display:flex;align-items:center;gap:10px;padding:14px 2px 12px;flex-shrink:0}
+.hdr-t{font-family:var(--font-h);font-size:18px;font-weight:700;letter-spacing:1.5px;line-height:1}
+.hdr-s{font-family:var(--font-d);font-size:9px;color:var(--txt2);letter-spacing:2px;text-transform:uppercase}
+.hdr-spacer{flex:1}
+.badge{display:flex;align-items:center;gap:6px;font-family:var(--font-d);font-size:9px;letter-spacing:.5px;padding:5px 9px;border-radius:4px;border:1px solid var(--border);white-space:nowrap}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--txt2)}
+.dot.live{background:var(--ok);animation:pulse 2s infinite}
+.dot.warn{background:var(--warn)} .dot.red{background:var(--red)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+.gear{background:none;border:1px solid var(--border);color:var(--txt2);width:32px;height:32px;border-radius:6px;font-size:15px}
+
+/* Contador do dia */
+.hoje{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px;display:flex;align-items:baseline;gap:10px;flex-shrink:0}
+.hoje .n{font-family:var(--font-h);font-size:42px;font-weight:700;line-height:1;color:var(--acc)}
+.hoje .l{font-family:var(--font-d);font-size:11px;color:var(--txt2);letter-spacing:1px;text-transform:uppercase}
+.hoje .sess{margin-left:auto;text-align:right;font-family:var(--font-d);font-size:10px;color:var(--txt2)}
+.hoje .sess b{color:var(--txt);font-size:14px}
+
+/* Seletor de produto */
+.sec-lbl{font-family:var(--font-d);font-size:10px;color:var(--txt2);letter-spacing:2px;text-transform:uppercase;margin:16px 2px 8px}
+.prods{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.prod{background:var(--surface);border:2px solid var(--border);border-radius:12px;padding:16px 12px;text-align:left;cursor:pointer;transition:border-color .12s,background .12s}
+.prod.sel{border-color:var(--acc);background:rgba(255,92,31,.10)}
+.prod .p-nome{font-family:var(--font-h);font-size:22px;font-weight:700;line-height:1;color:var(--txt)}
+.prod .p-bat{font-family:var(--font-d);font-size:11px;color:var(--txt2);margin-top:5px}
+.prod.sel .p-bat{color:var(--acc)}
+
+/* OP + quantidade */
+.row{display:flex;gap:10px;margin-top:12px}
+.field{flex:1;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:8px 12px}
+.field .l{font-family:var(--font-d);font-size:9px;color:var(--txt2);letter-spacing:1.5px;text-transform:uppercase}
+.field input{width:100%;background:none;border:none;color:var(--txt);font-family:var(--font-b);font-size:17px;font-weight:600;margin-top:3px;outline:none}
+.qtd{display:flex;align-items:center;gap:0;flex-shrink:0}
+.qtd button{width:46px;height:100%;min-height:52px;background:var(--elevated);border:1px solid var(--border);color:var(--txt);font-size:24px;font-weight:700}
+.qtd button:first-child{border-radius:10px 0 0 10px}
+.qtd button:last-child{border-radius:0 10px 10px 0}
+.qtd .v{width:52px;text-align:center;font-family:var(--font-h);font-size:26px;font-weight:700;background:var(--surface);border-top:1px solid var(--border);border-bottom:1px solid var(--border);line-height:52px}
+
+.spacer{flex:1;min-height:14px}
+
+/* Botão gigante de registrar */
+.registrar{flex-shrink:0;width:100%;border:none;border-radius:16px;background:var(--acc);color:#111;font-family:var(--font-h);font-size:30px;font-weight:700;letter-spacing:1px;padding:26px 12px;transition:transform .06s,background .15s;touch-action:manipulation}
+.registrar:active{transform:scale(.98)}
+.registrar:disabled{background:var(--txt3);color:var(--txt2)}
+.registrar.ok{background:var(--ok);color:#0a1f0c}
+.registrar small{display:block;font-family:var(--font-d);font-size:11px;font-weight:600;letter-spacing:1px;margin-top:4px;opacity:.75}
+
+/* Fila pendente / avisos */
+.pend{flex-shrink:0;text-align:center;font-family:var(--font-d);font-size:11px;color:var(--warn);margin-top:9px;min-height:16px}
+
+/* Toast */
+.toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 120px);transform:translateX(-50%) translateY(20px);background:var(--ok);color:#0a1f0c;font-family:var(--font-b);font-weight:700;font-size:15px;padding:12px 22px;border-radius:30px;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:40;box-shadow:0 8px 24px rgba(0,0,0,.4)}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.err{background:var(--red);color:#fff}
+
+/* Modal URL */
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.85);display:none;align-items:center;justify-content:center;z-index:50;padding:18px}
+.modal.on{display:flex}
+.modal-box{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:22px;width:100%;max-width:440px;display:flex;flex-direction:column;gap:12px}
+.modal-box h2{font-family:var(--font-h);font-size:20px}
+.modal-box p{font-size:12px;color:var(--txt2);line-height:1.5}
+.modal-box input{width:100%;background:var(--bg);border:1px solid var(--border);color:var(--txt);border-radius:8px;padding:11px;font-family:var(--font-d);font-size:12px}
+.modal-actions{display:flex;gap:10px;justify-content:flex-end}
+.modal-actions button{font-family:var(--font-b);font-weight:600;font-size:13px;padding:9px 16px;border-radius:8px;border:none}
+.btn-p{background:var(--acc);color:#111} .btn-s{background:var(--elevated);color:var(--txt);border:1px solid var(--border)}
+</style>
+</head>
+<body>
+
+<header class="hdr">
+  <div>
+    <div class="hdr-t">APONTAR</div>
+    <div class="hdr-s">Grampeadora · Jaci/SP</div>
+  </div>
+  <div class="hdr-spacer"></div>
+  <div class="badge"><span class="dot" id="dot"></span><span id="badge-txt">…</span></div>
+  <button class="gear" id="gear" title="Fonte de dados">⚙</button>
+</header>
+
+<div class="hoje">
+  <div class="n" id="hoje-n">—</div>
+  <div class="l">painéis<br>hoje</div>
+  <div class="sess">nesta sessão<br><b id="sess-n">0</b></div>
+</div>
+
+<div class="sec-lbl">Produto</div>
+<div class="prods" id="prods">
+  <div class="prod sel" data-prod="GRANDE" data-bat="9"><div class="p-nome">GRANDE</div><div class="p-bat">9 batidas</div></div>
+  <div class="prod" data-prod="MENOR" data-bat="7"><div class="p-nome">MENOR</div><div class="p-bat">7 batidas</div></div>
+</div>
+
+<div class="row">
+  <div class="field">
+    <div class="l">OP (opcional)</div>
+    <input id="op" type="text" inputmode="text" placeholder="—" autocomplete="off">
+  </div>
+  <div class="qtd" aria-label="quantidade">
+    <button id="q-menos" type="button">−</button>
+    <div class="v" id="q-val">1</div>
+    <button id="q-mais" type="button">+</button>
+  </div>
+</div>
+
+<div class="spacer"></div>
+
+<button class="registrar" id="btn-reg">REGISTRAR PAINEL<small id="reg-sub">toque a cada painel pronto</small></button>
+<div class="pend" id="pend"></div>
+
+<div class="toast" id="toast"></div>
+
+<div class="modal" id="modal">
+  <div class="modal-box">
+    <h2>Fonte de dados</h2>
+    <p>URL de implantação do Apps Script (<b>…/exec</b>). Fica só na memória — para fixar, edite <b>SHEETS_URL</b> no HTML ou abra com <b>?url=</b>.</p>
+    <input id="url-input" type="text" placeholder="https://script.google.com/macros/s/…/exec" autocomplete="off">
+    <div class="modal-actions">
+      <button class="btn-s" id="modal-cancel">Cancelar</button>
+      <button class="btn-p" id="modal-save">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+// Config — estado só em memória. Para fixar numa maquininha, edite SHEETS_URL
+// ou abra a página com ?url=<url do Apps Script>.
+const CFG = { SHEETS_URL: 'https://script.google.com/macros/s/AKfycbx-SziFOJ9WYJeoJqWupKLXIunIVMSjsJzDygZr6YjbFKnmJvlqs5CchfhGIC-a6thWwg/exec' };
+let SHEETS_URL = (new URLSearchParams(location.search).get('url') || CFG.SHEETS_URL || '').trim();
+
+let produtoSel = 'GRANDE';
+let qtd = 1;
+let sessaoCount = 0;   // painéis apontados nesta sessão do navegador
+let _seq = 0;
+
+// ── JSONP ──
+function jsonpFetch(url){
+  return new Promise((res,rej)=>{
+    const cb='apt_cb_'+Date.now()+'_'+(++_seq);
+    const s=document.createElement('script');
+    const t=setTimeout(()=>{ cleanup(); rej(new Error('Timeout')); },25000);
+    function cleanup(){ clearTimeout(t); delete window[cb]; if(s.parentNode) s.parentNode.removeChild(s); }
+    window[cb]=d=>{ cleanup(); res(d); };
+    s.onerror=()=>{ cleanup(); rej(new Error('Falha de rede')); };
+    s.src=url+(url.includes('?')?'&':'?')+'callback='+cb;
+    document.head.appendChild(s);
+  });
+}
+function setBadge(estado,txt){
+  document.getElementById('dot').className='dot '+(estado||'');
+  document.getElementById('badge-txt').textContent=txt;
+}
+function toast(msg,err){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.className='toast on'+(err?' err':'');
+  clearTimeout(toast._t); toast._t=setTimeout(()=>t.className='toast'+(err?' err':''),1600);
+}
+function vibrar(ms){ try{ if(navigator.vibrate) navigator.vibrate(ms); }catch(e){} }
+
+// ── Carrega produtos da planilha (dropdown editável no Sheets) ──
+async function carregarProdutos(){
+  if(!SHEETS_URL){ setBadge('warn','sem fonte — ⚙'); return; }
+  try{
+    setBadge('warn','conectando…');
+    const j=await jsonpFetch(SHEETS_URL+(SHEETS_URL.includes('?')?'&':'?')+'action=getProdutos');
+    if(j && j.ok && j.produtos && Object.keys(j.produtos).length){
+      renderProdutos(j.produtos);
+    }
+    setBadge('live','conectado');
+    atualizarTotal();
+  }catch(e){
+    setBadge('red','sem conexão');
+  }
+}
+function renderProdutos(map){
+  const cont=document.getElementById('prods');
+  const nomes=Object.keys(map);
+  cont.innerHTML=nomes.map((n,i)=>{
+    const bat=map[n].batidas||'';
+    return '<div class="prod'+(i===0?' sel':'')+'" data-prod="'+n+'" data-bat="'+bat+'">'
+      +'<div class="p-nome">'+n+'</div><div class="p-bat">'+bat+' batidas</div></div>';
+  }).join('');
+  produtoSel=nomes[0];
+  ligarProdutos();
+}
+function ligarProdutos(){
+  document.querySelectorAll('.prod').forEach(el=>{
+    el.onclick=()=>{
+      document.querySelectorAll('.prod').forEach(p=>p.classList.remove('sel'));
+      el.classList.add('sel');
+      produtoSel=el.getAttribute('data-prod');
+      vibrar(8);
+    };
+  });
+}
+
+// ── Total do dia (via getDashboard, leve o suficiente) ──
+async function atualizarTotal(){
+  if(!SHEETS_URL) return;
+  try{
+    const j=await jsonpFetch(SHEETS_URL);
+    if(j && j.ok){
+      let tot=0; (j.apontamentos||[]).forEach(a=>tot+=Number(a.qtd)||1);
+      document.getElementById('hoje-n').textContent=tot.toLocaleString('pt-BR');
+    }
+  }catch(e){}
+}
+
+// ── Quantidade ──
+function setQtd(v){ qtd=Math.max(1,Math.min(99,v)); document.getElementById('q-val').textContent=qtd; }
+document.getElementById('q-mais').onclick=()=>{ setQtd(qtd+1); vibrar(8); };
+document.getElementById('q-menos').onclick=()=>{ setQtd(qtd-1); vibrar(8); };
+
+// ── Fila de envio (reenvia sozinho em falha; sem perder tap) ──
+const fila=[]; let enviando=false;
+function atualizarPend(){
+  const p=document.getElementById('pend');
+  p.textContent = fila.length ? ('⏳ '+fila.length+' aguardando envio…') : '';
+}
+function enfileirar(item){ fila.push(item); atualizarPend(); flush(); }
+async function flush(){
+  if(enviando || !fila.length || !SHEETS_URL) return;
+  enviando=true;
+  const item=fila[0];
+  try{
+    const url=SHEETS_URL+(SHEETS_URL.includes('?')?'&':'?')
+      +'action=addApontamento&produto='+encodeURIComponent(item.produto)
+      +'&qtd='+item.qtd+(item.op?'&op='+encodeURIComponent(item.op):'');
+    const j=await jsonpFetch(url);
+    if(!j || j.ok===false) throw new Error((j&&j.erro)||'erro');
+    fila.shift();
+    if(typeof j.totalHoje==='number') document.getElementById('hoje-n').textContent=Number(j.totalHoje).toLocaleString('pt-BR');
+    setBadge('live','conectado');
+  }catch(e){
+    setBadge('warn','reenviando…');
+    // deixa o item na fila; tenta de novo em 3 s
+    setTimeout(()=>{ enviando=false; flush(); },3000);
+    atualizarPend();
+    return;
+  }
+  enviando=false;
+  atualizarPend();
+  if(fila.length) flush();
+}
+
+// ── Botão registrar ──
+const btn=document.getElementById('btn-reg');
+btn.onclick=()=>{
+  if(!SHEETS_URL){ abrirModal(); return; }
+  const op=document.getElementById('op').value.trim();
+  // Otimista: conta na hora, confirma no envio.
+  sessaoCount+=qtd;
+  document.getElementById('sess-n').textContent=sessaoCount;
+  const nAtual=Number(String(document.getElementById('hoje-n').textContent).replace(/\D/g,''))||0;
+  document.getElementById('hoje-n').textContent=(nAtual+qtd).toLocaleString('pt-BR');
+  enfileirar({produto:produtoSel, qtd:qtd, op:op});
+  vibrar(30);
+  toast('+'+qtd+' '+produtoSel);
+  // feedback visual no botão
+  btn.classList.add('ok');
+  setTimeout(()=>btn.classList.remove('ok'),350);
+  setQtd(1);
+};
+
+// ── Modal URL ──
+const modal=document.getElementById('modal');
+function abrirModal(){ document.getElementById('url-input').value=SHEETS_URL; modal.classList.add('on'); }
+document.getElementById('gear').onclick=abrirModal;
+document.getElementById('modal-cancel').onclick=()=>modal.classList.remove('on');
+document.getElementById('modal-save').onclick=()=>{
+  const v=document.getElementById('url-input').value.trim();
+  if(v){ SHEETS_URL=v; modal.classList.remove('on'); carregarProdutos(); flush(); }
+};
+
+// Boot
+ligarProdutos();
+carregarProdutos();
+setInterval(atualizarTotal, 60000);   // reconcilia o total com a planilha 1×/min
+if('serviceWorker' in navigator){ navigator.serviceWorker.register('/sw-grampeadora.js').catch(()=>{}); }
+</script>
+</body>
+</html>

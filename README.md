@@ -17,8 +17,9 @@ em "painéis".
 
 | Arquivo | Papel |
 |---|---|
-| `index.html` | O dashboard (TV/monitor). Todo o cálculo de meta/semáforo vive aqui. |
-| `grampeadora_appscript.gs` | Backend Apps Script — serve `config` + `produtos` + `apontamentos` do dia. **Mudar aqui exige re-deploy manual** no editor do Apps Script. |
+| `index.html` | O dashboard (TV/monitor, rota `/`). Todo o cálculo de meta/semáforo vive aqui. |
+| `apontar.html` | App de apontamento (celular/tablet, rota `/apontar`). O operador toca a cada painel pronto; grava na aba `apontamentos`. |
+| `grampeadora_appscript.gs` | Backend Apps Script — lê (`getDashboard`, `getProdutos`) e grava (`addApontamento`). **Mudar aqui exige re-deploy manual** no editor do Apps Script. |
 | `sw-grampeadora.js` | Service worker (network-first) — a tela não cai se a rede piscar. |
 | `vercel.json` / `manifest.json` | Deploy Vercel + PWA. |
 
