@@ -64,3 +64,4 @@ em "painéis".
 - [ ] Preencher `turno_inicio`, `turno_fim`, `pausas` na aba `config`.
 - [ ] Popular `produtos` com todos os painéis e suas batidas (começar grande=9, menor=7).
 - [ ] Após 1 semana: revisar o teto real do painel menor com o histórico.
+
